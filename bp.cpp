@@ -35,6 +35,8 @@ struct Service {
 	string serv_name;
 	int serv_qty;
 	double serv_price;
+	bool paid;
+	int bill_id;
 };
 
 struct Appointment {
@@ -43,6 +45,8 @@ struct Appointment {
 	string appmt_name;
 	int appmt_qty;
 	double appmt_price;
+	bool paid;
+	int bill_id;
 };
 
 struct histRecord {
@@ -80,16 +84,16 @@ Staff staff_list[100] = {
 int staff_count = 3;
 
 Service serv_list[100] = {
-	{"C01", "S01", "Haircut", 1, 50.00},
-	{"C02", "S02", "Wash", 3, 60.00},
-	{"C03", "S03", "Makeup", 2, 100.00}
+	{"C01", "S01", "Haircut", 1, 50.00, false, 0},
+	{"C02", "S02", "Wash", 3, 60.00, false, 0},
+	{"C03", "S03", "Makeup", 2, 100.00, false, 0}
 };
 int serv_count = 3;
 
 Appointment appmt_list[100] = {
-	{"C01", "A01", "Wedding", 1, 50.00},
-	{"C02", "A02", "Hair Spa", 3, 60.00},
-	{"C03", "A03", "Photograph", 2, 100.00}
+	{"C01", "A01", "Wedding", 1, 50.00, false, 0},
+	{"C02", "A02", "Hair Spa", 3, 60.00, false, 0},
+	{"C03", "A03", "Photograph", 2, 100.00, false, 0}
 };
 int appmt_count = 3;
 
@@ -97,10 +101,10 @@ histRecord history[hist_max] = {
 	// bill_id, customer_id, payment_id, payment_amt, payable, change, method, status, type
 
 	{10001, "C01", 20001, 50.00, 42.40, 7.60, "Cash", "Success", "Service"},
-	{10001, "C01", 20002, 42.40, 42.40, 0.00, "E-Wallet", "Success", "Apponitment"},
+	{10001, "C01", 20002, 42.40, 42.40, 0.00, "E-Wallet", "Success", "Appointment"},
 	{10002, "C02", 20003, 100.00, 100.00, 0.00, "E-Wallet", "Success", "Membership"},
 	{10003, "C03", 20004, 50.00, 50.00, 0.00, "Online Banking", "Success", "Service"},
-	{10003, "C03", 20005, 120.00, 100.00, 20.00, "Cash", "Success", "Apponitment"},
+	{10003, "C03", 20005, 120.00, 100.00, 20.00, "Cash", "Success", "Appointment"},
 	{10004, "C01", 20006, 0.00, 42.40, 0.00, "Cash", "Cancelled", "Service"}
 };
 int history_count = 6;
@@ -149,6 +153,8 @@ void clear_input();
 
 int main()
 {
+	srand(time(NULL));
+
 	char action;
 	string cust_id;
 	bool is_staff = false;
@@ -500,6 +506,7 @@ pmtResult pmt_service(string customer_id, int bill_id, histRecord history[], int
 
 	string customer_name;
 	bool is_member = false;
+	bool paid_service = false;
 
 	// get customer's info
 	customer(customer_id, customer_name, is_member);
@@ -526,8 +533,10 @@ pmtResult pmt_service(string customer_id, int bill_id, histRecord history[], int
 	for (int i = 0; i < serv_count; i++)
 	{
 		// print and calculation of services
-		if (serv_list[i].customer_id == customer_id)
+		if (serv_list[i].customer_id == customer_id &&
+			serv_list[i].paid == false)
 		{
+			paid_service = true;
 			double subtotal = calc_subtotal(serv_list[i].serv_price, serv_list[i].serv_qty);
 
 			total_qty += serv_list[i].serv_qty;
@@ -543,6 +552,12 @@ pmtResult pmt_service(string customer_id, int bill_id, histRecord history[], int
 		}
 	}
 
+	if (paid_service == false)
+	{
+		cout << "\nAll services have already been paid.\n";
+		return { bill_id, 0, false, 0 };
+	}
+
 	// payment calculations
 	discount_amt = calc_discount(total_price, is_member);
 	total_after_disc = total_price - discount_amt;
@@ -551,6 +566,19 @@ pmtResult pmt_service(string customer_id, int bill_id, histRecord history[], int
 
 	// data stored for other function use
 	pmtResult result = pmt_process(customer_id, bill_id, payable, history, history_count, "Service");
+
+	if (result.status == true)
+	{
+		for (int i = 0; i < serv_count; i++)
+		{
+			if (serv_list[i].customer_id == customer_id &&
+				serv_list[i].paid == false)
+			{
+				serv_list[i].paid = true;
+				serv_list[i].bill_id = bill_id;
+			}
+		}
+	}
 
 	// summary
 	cout << setfill('-') << setw(75) << "-" << endl;
@@ -587,6 +615,7 @@ pmtResult pmt_appmt(string customer_id, int bill_id, histRecord history[], int& 
 
 	string customer_name;
 	bool is_member = false;
+	bool paid_appmt = false;
 
 	// get customer's info
 	customer(customer_id, customer_name, is_member);
@@ -612,10 +641,15 @@ pmtResult pmt_appmt(string customer_id, int bill_id, histRecord history[], int& 
 
 	for (int i = 0; i < appmt_count; i++)
 	{
-		//print and calculation for appointment
-		if (appmt_list[i].customer_id == customer_id)
+		if (appmt_list[i].customer_id == customer_id &&
+			appmt_list[i].paid == false)
 		{
-			double subtotal = calc_subtotal(appmt_list[i].appmt_price, appmt_list[i].appmt_qty);
+			paid_appmt = true;
+
+			double subtotal = calc_subtotal(
+				appmt_list[i].appmt_price,
+				appmt_list[i].appmt_qty
+			);
 
 			total_qty += appmt_list[i].appmt_qty;
 			total_price += subtotal;
@@ -630,6 +664,12 @@ pmtResult pmt_appmt(string customer_id, int bill_id, histRecord history[], int& 
 		}
 	}
 
+	if (paid_appmt == false)
+	{
+		cout << "\nAll appointments have already been paid.\n";
+		return { bill_id, 0, false, 0 };
+	}
+
 	// payment detail calculation
 	discount_amt = calc_discount(total_price, is_member);
 	total_after_disc = total_price - discount_amt;
@@ -637,7 +677,20 @@ pmtResult pmt_appmt(string customer_id, int bill_id, histRecord history[], int& 
 	payable = calc_payable(total_after_disc, tax_amt);
 
 	// data stored for other function use
-	pmtResult result = pmt_process(customer_id, bill_id, payable, history, history_count, "Apponitment");
+	pmtResult result = pmt_process(customer_id, bill_id, payable, history, history_count, "Appointment");
+
+	if (result.status == true)
+	{
+		for (int i = 0; i < appmt_count; i++)
+		{
+			if (appmt_list[i].customer_id == customer_id &&
+				appmt_list[i].paid == false)
+			{
+				appmt_list[i].paid = true;
+				appmt_list[i].bill_id = bill_id;
+			}
+		}
+	}
 
 	//summary
 	cout << setfill('-') << setw(75) << "-" << endl;
@@ -910,7 +963,8 @@ void receipt(int bill_id, int pmt_id, double change, string cust_id,
 				// listing service purchased
 				for (int j = 0; j < serv_count; j++)
 				{
-					if (serv_list[j].customer_id == cust_id)
+					if (serv_list[j].customer_id == cust_id &&
+						serv_list[j].paid == true)
 					{
 						double subtotal = calc_subtotal(
 							serv_list[j].serv_price,
@@ -936,10 +990,12 @@ void receipt(int bill_id, int pmt_id, double change, string cust_id,
 
 				for (int j = 0; j < serv_count; j++)
 				{
-					if (serv_list[j].customer_id == cust_id)
+					if (serv_list[j].customer_id == cust_id &&
+						serv_list[j].paid == true)
 					{
-						service_price += calc_subtotal(serv_list[j].serv_price, serv_list[j].serv_qty);
-						service_qty += serv_list[j].serv_qty;
+						service_price += calc_subtotal(
+							serv_list[j].serv_price,
+							serv_list[j].serv_qty);
 					}
 				}
 
@@ -966,7 +1022,8 @@ void receipt(int bill_id, int pmt_id, double change, string cust_id,
 				// listing appointment purchased
 				for (int j = 0; j < appmt_count; j++)
 				{
-					if (appmt_list[j].customer_id == cust_id)
+					if (appmt_list[j].customer_id == cust_id &&
+						appmt_list[j].paid == true)
 					{
 						double subtotal = calc_subtotal(
 							appmt_list[j].appmt_price,
