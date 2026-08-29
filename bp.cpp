@@ -1045,6 +1045,7 @@ void invoice(int bill_id, int pmt_id, double change, string cust_id,
 	string customer_name;
 	bool is_member = false;
 
+	// get customer info
 	customer(cust_id, customer_name, is_member);
 
 	double total_payment = 0;
@@ -1070,7 +1071,7 @@ void invoice(int bill_id, int pmt_id, double change, string cust_id,
 	cout << setfill('-') << setw(80) << "-" << endl;
 	cout << setfill(' ');
 
-	// Print only successful payments
+	// listing items purchased
 	for (int i = 0; i < history_count; i++)
 	{
 		if (history[i].customer_id == cust_id &&
@@ -1118,6 +1119,7 @@ void pmt_history(int bill_id, string customer_id, int pmt_id, double pmt_amt, do
 {
 	if (history_count < hist_max)
 	{
+		// storing payment info
 		history[history_count].bill_id = bill_id;
 		history[history_count].customer_id = customer_id;
 		history[history_count].payment_id = pmt_id;
@@ -1129,6 +1131,7 @@ void pmt_history(int bill_id, string customer_id, int pmt_id, double pmt_amt, do
 		history[history_count].payment_method = method;
 		history[history_count].payment_type = payment_type;
 
+		// payment status update
 		if (status == true)
 		{
 			history[history_count].payment_status = "Success";
